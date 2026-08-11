@@ -1,0 +1,291 @@
+{
+  "name": "Customer Support Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "responseMode": "responseNodes"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "947269be-239f-435f-8701-00e8206dcf95",
+      "name": "When chat message received",
+      "webhookId": "f626c4a1-e070-4fb9-87be-53df8c359f85"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Customer Support Agent. Classify each customer request into exactly one category: Account, Billing, How-to, Troubleshooting, Order/Delivery, Refund/Cancellation, Complaint, or Other.\n\nAlso determine:\nUrgency: Low/Medium/High/Critical\nSentiment: Positive/Neutral/Negative/Very Negative\nAction: auto_resolve or escalate\n\nEscalate refunds, payment disputes, legal issues, security issues, serious complaints, Very Negative sentiment, or cases needing human judgment. Auto-resolve safe questions when information is available.\n\nNever invent policies, prices, delivery dates, refund rules, order/account information, or other facts.\n\nReturn:\ncategory\nurgency\nsentiment\naction\nresponse\nreason\n\nBe concise, professional and empathetic. If escalating, tell the customer it is being forwarded to human support. \nFAQ:\nPassword reset: Use the account password reset option.\nOrder tracking: Use the order tracking option with the order ID.\nRefunds: Refund requests are escalated to human support.\nPayment disputes: Escalate to human support.\nAccount security: Escalate to human support.\nCustomer request:\nCustomer request:\n{{ $('When chat message received').item.json.chatInput }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "8df8e367-79df-47ce-8a58-1a23539219f1",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.1-8b-instant",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        96,
+        208
+      ],
+      "id": "7822db02-62da-4ce8-8df6-5e09e1a9aaec",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "JWuypnDd8mmdGf9W",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "databaseName": "customer_support"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryMongoDbChat",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        208
+      ],
+      "id": "fa3e4c30-296b-44be-88be-d4c0f7882991",
+      "name": "MongoDB Chat Memory",
+      "credentials": {
+        "mongoDb": {
+          "id": "J2P4AxqkMrjM7hjc",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "09b37090-1181-4e8f-ade0-d92d74915ae1",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "auto_resolve",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        592,
+        0
+      ],
+      "id": "a4b981ad-72c4-4813-8d29-58e1123aa229",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7f0ed24a-b8e7-40ee-82da-b7176dad7ce1",
+              "name": "action",
+              "value": "auto_resolve",
+              "type": "string"
+            },
+            {
+              "id": "813d36f7-0368-4907-89d9-78341923ca37",
+              "name": "response",
+              "value": "={{ $json.output.match(/response:\\s*(.*?)\\s*(?:reason:|$)/s)?.[1]?.trim() || $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        816,
+        -96
+      ],
+      "id": "57ee6154-3779-4d98-acfb-d7bba8dc399c",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6894f4d2-ec09-49b3-861f-12bed8d527e7",
+              "name": "response",
+              "value": "={{$json.output}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        816,
+        96
+      ],
+      "id": "dbd906df-bb80-425d-a68c-e96a3d44edb1",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "message": "={{$json.response}}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chat",
+      "typeVersion": 1.3,
+      "position": [
+        1040,
+        -96
+      ],
+      "id": "f425d943-b9bb-4343-a0fc-d2a3af179e3d",
+      "name": "Chat",
+      "webhookId": "1c484bc2-1d60-465d-bb05-5a579c4630b5"
+    },
+    {
+      "parameters": {
+        "message": "={{$json.response}}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chat",
+      "typeVersion": 1.3,
+      "position": [
+        1040,
+        96
+      ],
+      "id": "1991b6c5-27c7-43d6-9cf4-e6bb2e4dbb19",
+      "name": "Chat1",
+      "webhookId": "a0ced239-574f-441f-bfcd-97c05606121a"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MongoDB Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Chat1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "7bcaa53b-9c2d-46db-8690-0016bcf5a8b5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d560b4f5bddd6ec0833e6a431ec367630d29a03568376a87077592b2b2af16a7"
+  },
+  "nodeGroups": [],
+  "id": "Fux41QT4v8czbiQh",
+  "tags": []
+}
